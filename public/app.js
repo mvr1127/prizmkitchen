@@ -164,6 +164,8 @@
       if (!res.ok) throw new Error('Failed');
       tickets = tickets.map(t => t.id === id ? { ...t, delivered: true } : t);
       renderAll();
+      refreshDeliveredCount();
+      if (deliveredOpen) loadDelivered();
     } catch (_) {
       if (card) card.classList.remove('delivering');
       alert('Could not mark ticket as delivered. Please try again.');
@@ -264,6 +266,175 @@
     } catch (_) {}
   }
 
+  const deliveredToggle = document.getElementById('deliveredToggle');
+  const deliveredList = document.getElementById('deliveredList');
+  const deliveredCount = document.getElementById('deliveredCount');
+  const toggleArrow = document.getElementById('toggleArrow');
+
+  let deliveredTickets = [];
+  let deliveredOpen = false;
+
+  deliveredToggle.addEventListener('click', () => {
+    deliveredOpen = !deliveredOpen;
+    deliveredList.style.display = deliveredOpen ? 'grid' : 'none';
+    toggleArrow.classList.toggle('open', deliveredOpen);
+    if (deliveredOpen) loadDelivered();
+  });
+
+  async function loadDelivered() {
+    try {
+      const res = await fetch('/api/tickets/delivered');
+      if (!res.ok) return;
+      deliveredTickets = await res.json();
+      renderDelivered();
+    } catch (_) {}
+  }
+
+  function formatDateTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+      d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderDelivered() {
+    deliveredCount.textContent = deliveredTickets.length;
+    deliveredList.innerHTML = '';
+    deliveredTickets.forEach(ticket => {
+      const ticketLabel = ticket.ticketName
+        ? `#${ticket.ticketName}`
+        : ticket.number
+          ? `#${ticket.number}`
+          : ticket.id.slice(-4).toUpperCase();
+
+      const itemsSummary = ticket.items.map(i =>
+        `${i.quantity}× ${escapeHtml(i.name)}`
+      ).join(', ');
+
+      const card = document.createElement('div');
+      card.className = 'delivered-card';
+      card.innerHTML = `
+        <div class="delivered-card-header">
+          <span class="delivered-num">${escapeHtml(ticketLabel)}</span>
+          ${ticket.customerName ? `<span class="delivered-customer">${escapeHtml(ticket.customerName)}</span>` : ''}
+          <span class="delivered-time">${ticket.deliveredAt ? formatDateTime(ticket.deliveredAt) : ''}</span>
+        </div>
+        <div class="delivered-items">${itemsSummary}</div>
+        ${ticket.orderNote ? `<div class="delivered-note">📋 ${escapeHtml(ticket.orderNote)}</div>` : ''}
+        <button class="btn-restore" data-id="${ticket.id}">↩ Restore</button>`;
+
+      card.querySelector('.btn-restore').addEventListener('click', () => restoreTicket(ticket.id));
+      deliveredList.appendChild(card);
+    });
+  }
+
+  async function restoreTicket(id) {
+    try {
+      const res = await fetch(`/api/tickets/${id}/restore`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed');
+      deliveredTickets = deliveredTickets.filter(t => t.id !== id);
+      renderDelivered();
+      await loadTickets();
+    } catch (_) {
+      alert('Could not restore ticket. Please try again.');
+    }
+  }
+
+  function refreshDeliveredCount() {
+    fetch('/api/tickets/delivered')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { deliveredCount.textContent = data.length; })
+      .catch(() => {});
+  }
+
+  const modalOverlay = document.getElementById('modalOverlay');
+  const newOrderBtn = document.getElementById('newOrderBtn');
+  const modalClose = document.getElementById('modalClose');
+  const modalCancel = document.getElementById('modalCancel');
+  const modalSubmit = document.getElementById('modalSubmit');
+  const addItemBtn = document.getElementById('addItemBtn');
+  const mItems = document.getElementById('mItems');
+  const mCustomerName = document.getElementById('mCustomerName');
+  const mOrderNote = document.getElementById('mOrderNote');
+
+  function addItemRow(focusName) {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <button class="btn-remove-item" type="button" title="Remove item">✕</button>
+      <div class="item-row-top">
+        <input type="text" class="item-name-input" placeholder="Item name" autocomplete="off">
+        <input type="number" class="item-qty-input" value="1" min="1" max="99">
+      </div>
+      <input type="text" class="item-mods-input" placeholder="Modifiers, e.g. oat milk, extra shot" autocomplete="off">`;
+    row.querySelector('.btn-remove-item').addEventListener('click', () => {
+      if (mItems.querySelectorAll('.item-row').length > 1) row.remove();
+    });
+    mItems.appendChild(row);
+    if (focusName) row.querySelector('.item-name-input').focus();
+  }
+
+  function openModal() {
+    mCustomerName.value = '';
+    mOrderNote.value = '';
+    mItems.innerHTML = '';
+    addItemRow(false);
+    modalOverlay.classList.add('open');
+    mCustomerName.focus();
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('open');
+  }
+
+  newOrderBtn.addEventListener('click', openModal);
+  modalClose.addEventListener('click', closeModal);
+  modalCancel.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+  addItemBtn.addEventListener('click', () => addItemRow(true));
+
+  modalSubmit.addEventListener('click', async () => {
+    const itemRows = mItems.querySelectorAll('.item-row');
+    const items = [];
+    let valid = true;
+
+    itemRows.forEach(row => {
+      const name = row.querySelector('.item-name-input').value.trim();
+      const qty = row.querySelector('.item-qty-input').value.trim();
+      const mods = row.querySelector('.item-mods-input').value.trim();
+      if (!name) { valid = false; row.querySelector('.item-name-input').focus(); return; }
+      items.push({
+        name,
+        quantity: qty || '1',
+        modifiers: mods ? mods.split(',').map(s => s.trim()).filter(Boolean) : []
+      });
+    });
+
+    if (!valid || items.length === 0) return;
+
+    modalSubmit.disabled = true;
+    try {
+      const res = await fetch('/api/tickets/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: mCustomerName.value.trim(),
+          orderNote: mOrderNote.value.trim(),
+          items
+        })
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      tickets.push(data.ticket);
+      renderAll();
+      closeModal();
+    } catch (_) {
+      alert('Could not create order. Please try again.');
+    } finally {
+      modalSubmit.disabled = false;
+    }
+  });
+
+  refreshDeliveredCount();
   loadTickets();
   connectSSE();
   setInterval(pollTickets, 8000);
