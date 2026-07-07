@@ -27,9 +27,13 @@ const sseTokens = new Map();
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 let tickets = [];
+let ticketCounter = 1;
 try {
   const raw = fs.readFileSync(TICKETS_FILE, 'utf8');
   tickets = JSON.parse(raw).filter(t => !t.delivered);
+  if (tickets.length > 0) {
+    ticketCounter = Math.max(...tickets.map(t => t.number || 0)) + 1;
+  }
 } catch (_) {}
 
 function saveTickets() {
@@ -179,6 +183,7 @@ async function fetchOrder(orderId) {
 
 function buildTicket(order) {
   const customerName =
+    order.note ||
     order.fulfillments?.[0]?.pickup_details?.recipient?.display_name ||
     order.ticket_name ||
     null;
@@ -190,9 +195,12 @@ function buildTicket(order) {
     note: item.note || null
   }));
 
+  const number = ticketCounter++;
+
   return {
     id: order.id,
     orderId: order.id,
+    number,
     ticketName: order.ticket_name || null,
     customerName: customerName || null,
     items,

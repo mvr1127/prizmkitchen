@@ -69,7 +69,9 @@
 
     const ticketLabel = ticket.ticketName
       ? `#${ticket.ticketName}`
-      : ticket.orderId.slice(-6).toUpperCase();
+      : ticket.number
+        ? `#${ticket.number}`
+        : ticket.orderId.slice(-4).toUpperCase();
 
     const customerLine = ticket.customerName
       ? `<div class="ticket-customer">${escapeHtml(ticket.customerName)}</div>`
