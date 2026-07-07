@@ -127,7 +127,8 @@ async function processSquareEvent(event) {
 
   if (event.type === 'payment.completed' || event.type === 'payment.updated' || event.type === 'payment.created') {
     const payment = event.data?.object?.payment;
-    if (payment?.status === 'COMPLETED' && payment?.order_id) {
+    console.log(`Payment status: ${payment?.status}, order_id: ${payment?.order_id}`);
+    if (payment?.order_id) {
       orderId = payment.order_id;
     }
   } else if (event.type === 'order.updated') {
