@@ -177,7 +177,8 @@
   function connectSSE() {
     if (eventSource) eventSource.close();
 
-    eventSource = new EventSource('/api/events');
+    const token = sessionStorage.getItem('sseToken') || '';
+    eventSource = new EventSource(`/api/events?token=${token}`);
 
     eventSource.addEventListener('message', (e) => {
       let msg;

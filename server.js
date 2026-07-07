@@ -22,6 +22,8 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const DATA_DIR = path.join(__dirname, 'data');
 const TICKETS_FILE = path.join(DATA_DIR, 'tickets.json');
 
+const sseTokens = new Map();
+
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 let tickets = [];
@@ -203,7 +205,10 @@ app.post('/api/login', (req, res) => {
   const { password } = req.body;
   if (password === APP_PASSWORD) {
     req.session.authenticated = true;
-    return res.json({ success: true });
+    const sseToken = crypto.randomBytes(24).toString('hex');
+    sseTokens.set(sseToken, Date.now());
+    setTimeout(() => sseTokens.delete(sseToken), 24 * 60 * 60 * 1000);
+    return res.json({ success: true, sseToken });
   }
   res.status(401).json({ success: false, message: 'Incorrect password' });
 });
@@ -228,7 +233,11 @@ app.post('/api/tickets/:id/deliver', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/events', requireAuth, (req, res) => {
+app.get('/api/events', (req, res) => {
+  const token = req.query.token;
+  if (!req.session.authenticated && (!token || !sseTokens.has(token))) {
+    return res.status(401).end();
+  }
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');

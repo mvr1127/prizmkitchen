@@ -41,6 +41,7 @@
         });
         const data = await res.json();
         if (data.success) {
+          if (data.sseToken) sessionStorage.setItem('sseToken', data.sseToken);
           window.location.href = '/';
         } else {
           errorMsg.textContent = data.message || 'Incorrect password';
