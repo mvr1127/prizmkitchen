@@ -183,7 +183,6 @@ async function fetchOrder(orderId) {
 
 function buildTicket(order) {
   const customerName =
-    order.note ||
     order.fulfillments?.[0]?.pickup_details?.recipient?.display_name ||
     order.ticket_name ||
     null;
@@ -203,6 +202,7 @@ function buildTicket(order) {
     number,
     ticketName: order.ticket_name || null,
     customerName: customerName || null,
+    orderNote: order.note || null,
     items,
     createdAt: order.created_at || new Date().toISOString(),
     receivedAt: new Date().toISOString(),

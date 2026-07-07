@@ -108,7 +108,10 @@
           <div class="ticket-age${urgent ? ' urgent' : ''}">${age}</div>
         </div>
       </div>
-      <div class="ticket-items">${itemsHtml}</div>
+      <div class="ticket-items">
+        ${ticket.orderNote ? `<div class="order-note">📋 ${escapeHtml(ticket.orderNote)}</div>` : ''}
+        ${itemsHtml}
+      </div>
       <div class="ticket-footer">
         <button class="btn-deliver" data-id="${ticket.id}">✓ Delivered</button>
       </div>`;
