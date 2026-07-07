@@ -318,7 +318,10 @@ app.get('/', requireAuth, (req, res) => {
 });
 
 app.use('/style.css', express.static(path.join(__dirname, 'public', 'style.css')));
-app.use('/app.js', express.static(path.join(__dirname, 'public', 'app.js')));
+app.get('/app.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'app.js'));
+});
 
 app.listen(PORT, () => {
   console.log(`\nSquare Kitchen Display running on http://localhost:${PORT}`);

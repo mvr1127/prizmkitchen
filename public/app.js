@@ -238,6 +238,28 @@
     });
   }, 30000);
 
+  async function pollTickets() {
+    try {
+      const res = await fetch('/api/tickets');
+      if (res.status === 401) return;
+      const fresh = await res.json();
+      let changed = false;
+      fresh.forEach(t => {
+        if (!tickets.find(e => e.id === t.id)) {
+          tickets.push(t);
+          changed = true;
+          notifyBarista();
+        }
+      });
+      tickets = tickets.map(t => {
+        const server = fresh.find(s => s.id === t.id);
+        return server || t;
+      });
+      if (changed) renderAll();
+    } catch (_) {}
+  }
+
   loadTickets();
   connectSSE();
+  setInterval(pollTickets, 8000);
 })();
