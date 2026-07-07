@@ -101,22 +101,38 @@ app.post('/webhook/square', express.raw({ type: '*/*' }), async (req, res) => {
 });
 
 async function processSquareEvent(event) {
+  console.log(`Received Square event: ${event.type}`);
+
+  let orderId = null;
+
   if (event.type === 'payment.completed') {
-    const orderId = event.data?.object?.payment?.order_id;
-    if (!orderId) return;
-
-    const existing = tickets.find(t => t.orderId === orderId);
-    if (existing) return;
-
-    const order = await fetchOrder(orderId);
-    if (!order) return;
-
-    const ticket = buildTicket(order);
-    tickets.push(ticket);
-    saveTickets();
-    broadcastSSE({ type: 'new_ticket', ticket });
-    console.log(`New ticket added: ${ticket.id} for ${ticket.customerName || 'Unknown'}`);
+    orderId = event.data?.object?.payment?.order_id;
+  } else if (event.type === 'order.updated') {
+    const updated = event.data?.object?.order_updated;
+    if (updated?.state === 'COMPLETED') {
+      orderId = updated.order_id || event.data?.id;
+    }
   }
+
+  if (!orderId) {
+    console.log(`No order ID found in event or state not COMPLETED — skipping`);
+    return;
+  }
+
+  const existing = tickets.find(t => t.orderId === orderId);
+  if (existing) {
+    console.log(`Order ${orderId} already in queue — skipping`);
+    return;
+  }
+
+  const order = await fetchOrder(orderId);
+  if (!order) return;
+
+  const ticket = buildTicket(order);
+  tickets.push(ticket);
+  saveTickets();
+  broadcastSSE({ type: 'new_ticket', ticket });
+  console.log(`New ticket added: ${ticket.id} for ${ticket.customerName || 'Unknown'}`);
 }
 
 async function fetchOrder(orderId) {
