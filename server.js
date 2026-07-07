@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
@@ -51,7 +52,7 @@ app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+  cookie: { secure: true, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 }
 }));
 
 function requireAuth(req, res, next) {
