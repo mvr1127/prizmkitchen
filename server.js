@@ -235,7 +235,10 @@ app.post('/api/tickets/:id/deliver', requireAuth, (req, res) => {
 
 app.get('/api/events', (req, res) => {
   const token = req.query.token;
-  if (!req.session.authenticated && (!token || !sseTokens.has(token))) {
+  const sessionOk = !!req.session.authenticated;
+  const tokenOk = !!(token && sseTokens.has(token));
+  console.log(`SSE attempt — session:${sessionOk} token:${token ? token.slice(0,8) : 'none'} tokenValid:${tokenOk} mapSize:${sseTokens.size}`);
+  if (!sessionOk && !tokenOk) {
     return res.status(401).end();
   }
   res.setHeader('Content-Type', 'text/event-stream');
@@ -301,7 +304,13 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const sseToken = crypto.randomBytes(24).toString('hex');
+  sseTokens.set(sseToken, Date.now());
+  setTimeout(() => sseTokens.delete(sseToken), 24 * 60 * 60 * 1000);
+
+  let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+  html = html.replace('</head>', `  <script>window.__SSE_TOKEN__="${sseToken}";</script>\n</head>`);
+  res.send(html);
 });
 
 app.use('/style.css', express.static(path.join(__dirname, 'public', 'style.css')));
