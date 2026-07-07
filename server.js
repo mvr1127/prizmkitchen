@@ -233,6 +233,13 @@ app.get('/api/tickets', requireAuth, (req, res) => {
   res.json(tickets.filter(t => !t.delivered));
 });
 
+app.get('/api/tickets/delivered', requireAuth, (req, res) => {
+  const delivered = tickets.filter(t => t.delivered)
+    .sort((a, b) => new Date(b.deliveredAt) - new Date(a.deliveredAt))
+    .slice(0, 50);
+  res.json(delivered);
+});
+
 app.post('/api/tickets/:id/deliver', requireAuth, (req, res) => {
   const ticket = tickets.find(t => t.id === req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
@@ -243,6 +250,49 @@ app.post('/api/tickets/:id/deliver', requireAuth, (req, res) => {
   broadcastSSE({ type: 'ticket_delivered', ticketId: ticket.id });
   console.log(`Ticket delivered: ${ticket.id}`);
   res.json({ success: true });
+});
+
+app.post('/api/tickets/:id/restore', requireAuth, (req, res) => {
+  const ticket = tickets.find(t => t.id === req.params.id);
+  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
+  ticket.delivered = false;
+  delete ticket.deliveredAt;
+  saveTickets();
+  broadcastSSE({ type: 'new_ticket', ticket });
+  res.json({ success: true });
+});
+
+app.post('/api/tickets/manual', requireAuth, (req, res) => {
+  const { customerName, orderNote, items } = req.body;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'At least one item required' });
+  }
+
+  const number = ticketCounter++;
+  const ticket = {
+    id: `MANUAL-${Date.now()}`,
+    orderId: null,
+    number,
+    ticketName: null,
+    customerName: customerName?.trim() || null,
+    orderNote: orderNote?.trim() || null,
+    items: items.map(item => ({
+      name: item.name?.trim() || 'Item',
+      quantity: String(item.quantity || '1'),
+      modifiers: (item.modifiers || []).filter(Boolean),
+      note: item.note?.trim() || null
+    })),
+    createdAt: new Date().toISOString(),
+    receivedAt: new Date().toISOString(),
+    delivered: false,
+    manual: true
+  };
+
+  tickets.push(ticket);
+  saveTickets();
+  broadcastSSE({ type: 'new_ticket', ticket });
+  res.json({ success: true, ticket });
 });
 
 app.get('/api/events', (req, res) => {

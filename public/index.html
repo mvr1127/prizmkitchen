@@ -22,7 +22,10 @@
 
   <div class="toolbar">
     <span class="sort-label">Oldest orders first</span>
-    <button class="btn-test" id="testBtn" style="display:none">+ Test Ticket</button>
+    <div style="display:flex;gap:0.5rem">
+      <button class="btn-new-order" id="newOrderBtn">+ New Order</button>
+      <button class="btn-test" id="testBtn" style="display:none">+ Test</button>
+    </div>
   </div>
 
   <main class="tickets-container" id="ticketsContainer">
@@ -32,6 +35,39 @@
       <small>New orders will appear here automatically</small>
     </div>
   </main>
+
+  <section class="delivered-section" id="deliveredSection">
+    <button class="delivered-toggle" id="deliveredToggle">
+      <span>Completed Orders</span>
+      <span class="delivered-count" id="deliveredCount"></span>
+      <span class="toggle-arrow" id="toggleArrow">▶</span>
+    </button>
+    <div class="delivered-list" id="deliveredList" style="display:none"></div>
+  </section>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>New Manual Order</h2>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">Customer Name <span class="optional">(optional)</span></label>
+        <input type="text" id="mCustomerName" placeholder="e.g. Sarah" class="field-input">
+
+        <label class="field-label">Order Note <span class="optional">(optional)</span></label>
+        <input type="text" id="mOrderNote" placeholder="e.g. Extra hot, no whip" class="field-input">
+
+        <label class="field-label">Items</label>
+        <div id="mItems"></div>
+        <button class="btn-add-item" id="addItemBtn">+ Add Item</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="modalCancel">Cancel</button>
+        <button class="btn-submit" id="modalSubmit">Create Ticket</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
 </body>
