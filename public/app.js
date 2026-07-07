@@ -181,11 +181,23 @@
     } catch (_) {}
   }
 
+  let sseToken = window.__SSE_TOKEN__ || '';
+
+  async function getFreshToken() {
+    try {
+      const res = await fetch('/api/token');
+      if (res.ok) {
+        const data = await res.json();
+        sseToken = data.sseToken || sseToken;
+      }
+    } catch (_) {}
+  }
+
   function connectSSE() {
     if (eventSource) eventSource.close();
 
-    const token = window.__SSE_TOKEN__ || '';
-    eventSource = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+    const url = `/api/events?token=${encodeURIComponent(sseToken)}`;
+    eventSource = new EventSource(url);
 
     eventSource.addEventListener('message', (e) => {
       let msg;
@@ -211,7 +223,10 @@
     eventSource.onerror = () => {
       setStatus('error');
       eventSource.close();
-      reconnectTimer = setTimeout(connectSSE, 5000);
+      reconnectTimer = setTimeout(async () => {
+        await getFreshToken();
+        connectSSE();
+      }, 5000);
     };
 
     eventSource.onopen = () => setStatus('connected');
@@ -436,6 +451,6 @@
 
   refreshDeliveredCount();
   loadTickets();
-  connectSSE();
+  getFreshToken().then(connectSSE);
   setInterval(pollTickets, 8000);
 })();

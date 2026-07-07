@@ -229,6 +229,13 @@ app.post('/api/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
+app.get('/api/token', requireAuth, (req, res) => {
+  const sseToken = crypto.randomBytes(24).toString('hex');
+  sseTokens.set(sseToken, Date.now());
+  setTimeout(() => sseTokens.delete(sseToken), 24 * 60 * 60 * 1000);
+  res.json({ sseToken });
+});
+
 app.get('/api/tickets', requireAuth, (req, res) => {
   res.json(tickets.filter(t => !t.delivered));
 });
@@ -372,6 +379,7 @@ app.get('/', requireAuth, (req, res) => {
 
   let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
   html = html.replace('</head>', `  <script>window.__SSE_TOKEN__="${sseToken}";</script>\n</head>`);
+  res.setHeader('Cache-Control', 'no-store');
   res.send(html);
 });
 
