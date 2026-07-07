@@ -1,0 +1,409 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --espresso: #1a0a05;
+  --roast: #2c1810;
+  --caramel: #c47c2b;
+  --cream: #fff8ee;
+  --white: #ffffff;
+  --ticket-bg: #ffffff;
+  --ticket-border: #e8b96a;
+  --new-glow: #ff8c00;
+  --green: #22c55e;
+  --green-dark: #16a34a;
+  --red: #ef4444;
+  --gray: #6b7280;
+  --light-gray: #f3f4f6;
+  --text: #1f2937;
+  --shadow: 0 2px 8px rgba(0,0,0,0.12);
+  --shadow-lg: 0 4px 20px rgba(0,0,0,0.18);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── LOGIN PAGE ─────────────────────────────── */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--espresso) 0%, var(--roast) 60%, #4a2512 100%);
+  padding: 1rem;
+}
+
+.login-card {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.login-card .logo {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.login-card h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--roast);
+  margin-bottom: 0.25rem;
+}
+
+.login-card .subtitle {
+  color: var(--gray);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.login-card input[type="password"] {
+  width: 100%;
+  padding: 0.9rem 1.2rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  outline: none;
+  transition: border-color 0.2s;
+  margin-bottom: 1rem;
+  letter-spacing: 0.15em;
+}
+
+.login-card input[type="password"]:focus {
+  border-color: var(--caramel);
+}
+
+.btn-login {
+  width: 100%;
+  padding: 0.9rem;
+  background: var(--caramel);
+  color: var(--white);
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-login:hover { background: #b06a1e; }
+.btn-login:active { transform: scale(0.98); }
+
+.login-error {
+  color: var(--red);
+  font-size: 0.9rem;
+  margin-top: 0.75rem;
+  min-height: 1.2rem;
+}
+
+/* ── KITCHEN DISPLAY ────────────────────────── */
+.app-header {
+  background: var(--espresso);
+  color: var(--white);
+  padding: 0.9rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-left .icon { font-size: 1.4rem; }
+
+.header-left h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.badge-count {
+  background: var(--caramel);
+  color: var(--white);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  min-width: 1.6rem;
+  text-align: center;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6b7280;
+  transition: background 0.3s;
+}
+
+.status-dot.connected { background: var(--green); }
+.status-dot.error { background: var(--red); }
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--white);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-logout:hover { background: rgba(255,255,255,0.12); }
+
+/* ── TOOLBAR ────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--white);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sort-label {
+  font-size: 0.8rem;
+  color: var(--gray);
+}
+
+.btn-test {
+  background: transparent;
+  border: 1px solid var(--caramel);
+  color: var(--caramel);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-test:hover {
+  background: #fff3e0;
+}
+
+/* ── TICKET GRID ────────────────────────────── */
+.tickets-container {
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--gray);
+}
+
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+.empty-state p { font-size: 1rem; }
+.empty-state small { font-size: 0.85rem; color: #9ca3af; }
+
+/* ── TICKET CARD ────────────────────────────── */
+.ticket-card {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border-left: 5px solid var(--caramel);
+  transition: box-shadow 0.2s, transform 0.2s, opacity 0.4s;
+  animation: slideIn 0.3s ease;
+}
+
+.ticket-card.new {
+  border-left-color: var(--new-glow);
+  box-shadow: 0 0 0 2px var(--new-glow), var(--shadow-lg);
+}
+
+.ticket-card.delivering {
+  opacity: 0.4;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ticket-header {
+  background: var(--light-gray);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ticket-id-block { flex: 1; min-width: 0; }
+
+.ticket-number {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--roast);
+  line-height: 1.2;
+}
+
+.ticket-customer {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--caramel);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-meta {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.ticket-time {
+  font-size: 0.85rem;
+  color: var(--gray);
+  font-weight: 500;
+}
+
+.ticket-age {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+.ticket-age.urgent { color: var(--red); font-weight: 700; }
+
+.new-badge {
+  display: inline-block;
+  background: var(--new-glow);
+  color: var(--white);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+/* ── ITEMS ──────────────────────────────────── */
+.ticket-items {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.line-item {
+  margin-bottom: 0.6rem;
+}
+
+.line-item:last-child { margin-bottom: 0; }
+
+.item-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.item-qty {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--roast);
+  min-width: 1.5rem;
+}
+
+.item-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.item-modifiers {
+  margin-left: 1.9rem;
+  list-style: none;
+}
+
+.item-modifiers li {
+  font-size: 0.85rem;
+  color: #4b5563;
+  padding: 0.1rem 0;
+}
+
+.item-modifiers li::before {
+  content: '+ ';
+  color: var(--caramel);
+  font-weight: 700;
+}
+
+.item-note {
+  margin-left: 1.9rem;
+  font-size: 0.82rem;
+  color: var(--red);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ── DELIVER BUTTON ─────────────────────────── */
+.ticket-footer {
+  padding: 0.75rem 1rem;
+}
+
+.btn-deliver {
+  width: 100%;
+  padding: 0.85rem;
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  letter-spacing: 0.01em;
+}
+
+.btn-deliver:hover { background: var(--green-dark); }
+.btn-deliver:active { transform: scale(0.98); }
+
+/* ── RESPONSIVE ─────────────────────────────── */
+@media (max-width: 400px) {
+  .tickets-container { padding: 0.75rem; gap: 0.75rem; }
+  .ticket-header { padding: 0.65rem 0.75rem; }
+  .ticket-items { padding: 0.65rem 0.75rem; }
+  .ticket-footer { padding: 0.65rem 0.75rem; }
+  .ticket-number { font-size: 1.15rem; }
+  .app-header h1 { font-size: 1rem; }
+}
+
+@media (min-width: 700px) {
+  .app-header h1 { font-size: 1.4rem; }
+}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Display</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-left">
+      <span class="icon">☕</span>
+      <h1>Kitchen Display</h1>
+    </div>
+    <div class="header-right">
+      <span class="badge-count" id="ticketCount">0</span>
+      <span class="status-dot" id="statusDot" title="Disconnected"></span>
+      <button class="btn-logout" id="logoutBtn">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <span class="sort-label">Oldest orders first</span>
+    <button class="btn-test" id="testBtn" style="display:none">+ Test Ticket</button>
+  </div>
+
+  <main class="tickets-container" id="ticketsContainer">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🟢</div>
+      <p>No pending orders</p>
+      <small>New orders will appear here automatically</small>
+    </div>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

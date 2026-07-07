@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Display — Login</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="logo">☕</div>
+    <h1>Kitchen Display</h1>
+    <p class="subtitle">Enter the barista password to continue</p>
+
+    <form id="loginForm">
+      <input
+        type="password"
+        id="password"
+        placeholder="Password"
+        autocomplete="current-password"
+        autofocus
+        required
+      >
+      <button type="submit" class="btn-login">Sign In</button>
+      <p class="login-error" id="errorMsg"></p>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      errorMsg.textContent = '';
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = '/';
+        } else {
+          errorMsg.textContent = data.message || 'Incorrect password';
+        }
+      } catch (_) {
+        errorMsg.textContent = 'Connection error. Try again.';
+      }
+    });
+  </script>
+</body>
+</html>
