@@ -63,11 +63,18 @@ function requireAuth(req, res, next) {
 }
 
 app.post('/webhook/square', express.raw({ type: '*/*' }), async (req, res) => {
+  console.log('Webhook hit — raw body length:', req.body?.length);
+
   const rawBody = req.body.toString('utf8');
   const signature = req.headers['x-square-hmacsha256-signature'];
 
+  console.log('Signature present:', !!signature);
+  console.log('WEBHOOK_URL set:', !!WEBHOOK_URL);
+  console.log('SIGNATURE_KEY set:', !!SQUARE_WEBHOOK_SIGNATURE_KEY);
+
   if (SQUARE_WEBHOOK_SIGNATURE_KEY && WEBHOOK_URL) {
     if (!signature) {
+      console.log('Rejected: missing signature');
       return res.status(401).send('Missing signature');
     }
     const hmac = crypto.createHmac('sha256', SQUARE_WEBHOOK_SIGNATURE_KEY);
@@ -77,26 +84,36 @@ app.post('/webhook/square', express.raw({ type: '*/*' }), async (req, res) => {
       const sigBuf = Buffer.from(signature, 'base64');
       const expBuf = Buffer.from(expected, 'base64');
       if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        console.log('Rejected: signature mismatch');
+        console.log('Expected:', expected);
+        console.log('Received:', signature);
         return res.status(401).send('Invalid signature');
       }
-    } catch (_) {
+    } catch (err) {
+      console.log('Rejected: signature error —', err.message);
       return res.status(401).send('Invalid signature');
     }
+    console.log('Signature verified OK');
+  } else {
+    console.log('Signature check skipped — env vars not set');
   }
 
   let event;
   try {
     event = JSON.parse(rawBody);
   } catch (_) {
+    console.log('Rejected: invalid JSON');
     return res.status(400).send('Invalid JSON');
   }
+
+  console.log('Event type:', event.type);
 
   res.status(200).send('OK');
 
   try {
     await processSquareEvent(event);
   } catch (err) {
-    console.error('Error processing Square event:', err.message);
+    console.error('Error in processSquareEvent:', err.message, err.stack);
   }
 });
 
@@ -144,10 +161,12 @@ async function fetchOrder(orderId) {
     }
   });
   if (!res.ok) {
-    console.error(`Square API error fetching order ${orderId}: ${res.status}`);
+    const errBody = await res.text();
+    console.error(`Square API error fetching order ${orderId}: ${res.status} — ${errBody}`);
     return null;
   }
   const data = await res.json();
+  console.log(`Fetched order ${orderId}, state: ${data.order?.state}, items: ${data.order?.line_items?.length}`);
   return data.order || null;
 }
 
