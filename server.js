@@ -125,8 +125,11 @@ async function processSquareEvent(event) {
 
   let orderId = null;
 
-  if (event.type === 'payment.completed') {
-    orderId = event.data?.object?.payment?.order_id;
+  if (event.type === 'payment.completed' || event.type === 'payment.updated' || event.type === 'payment.created') {
+    const payment = event.data?.object?.payment;
+    if (payment?.status === 'COMPLETED' && payment?.order_id) {
+      orderId = payment.order_id;
+    }
   } else if (event.type === 'order.updated') {
     const updated = event.data?.object?.order_updated;
     if (updated?.state === 'COMPLETED') {
