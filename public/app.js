@@ -521,10 +521,14 @@
   const recipeSave = document.getElementById('recipeSave');
   const recipeCancelEdit = document.getElementById('recipeCancelEdit');
   const recipeFormTitle = document.getElementById('recipeFormTitle');
+  const squareItems = document.getElementById('squareItems');
+  const squareItemsStatus = document.getElementById('squareItemsStatus');
+  const refreshSquareItems = document.getElementById('refreshSquareItems');
   let recipes = [];
   let editingName = null;
   let recipeRequest = 0;
   let recipesLoadRequest = 0;
+  let squareLoadRequest = 0;
 
   function normalizedName(name) {
     return String(name).trim().toLocaleLowerCase();
@@ -538,6 +542,52 @@
     if (!Array.isArray(data)) throw new Error('Invalid recipes');
     if (request === recipesLoadRequest) recipes = data;
     return data;
+  }
+
+  function syncSquareSelection() {
+    const match = Array.from(squareItems.options).find(option =>
+      option.value && normalizedName(option.value) === normalizedName(recipeName.value)
+    );
+    squareItems.value = match ? match.value : '';
+  }
+
+  async function loadSquareItems() {
+    const request = ++squareLoadRequest;
+    squareItems.disabled = true;
+    refreshSquareItems.disabled = true;
+    squareItemsStatus.textContent = 'Loading Square items…';
+    try {
+      const response = await fetch('/api/square/items', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not load Square items');
+      const items = await response.json();
+      if (!Array.isArray(items)) throw new Error('Invalid Square items');
+      if (request !== squareLoadRequest || activeDialog !== recipesOverlay) return;
+      squareItems.replaceChildren();
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = items.length ? 'Select a Square item…' : 'No Square items found';
+      squareItems.appendChild(placeholder);
+      items.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        squareItems.appendChild(option);
+      });
+      squareItems.disabled = items.length === 0;
+      syncSquareSelection();
+      squareItemsStatus.textContent = items.length
+        ? `${items.length} Square items available.`
+        : 'No Square items found. Enter a name manually.';
+    } catch (_) {
+      if (request !== squareLoadRequest || activeDialog !== recipesOverlay) return;
+      squareItems.replaceChildren();
+      const placeholder = document.createElement('option');
+      placeholder.textContent = 'Square items unavailable';
+      squareItems.appendChild(placeholder);
+      squareItemsStatus.textContent = 'Could not load Square items. Enter a name manually or try refreshing.';
+    } finally {
+      if (request === squareLoadRequest) refreshSquareItems.disabled = false;
+    }
   }
 
   async function openRecipeView(name) {
@@ -593,6 +643,7 @@
       edit.addEventListener('click', () => {
         editingName = recipe.name;
         recipeName.value = recipe.name;
+        syncSquareSelection();
         recipeInstructions.value = recipe.instructions;
         recipeFormTitle.textContent = 'Edit recipe';
         recipeSave.textContent = 'Update recipe';
@@ -633,6 +684,7 @@
     recipesFeedback.textContent = 'Loading recipes…';
     recipesList.replaceChildren();
     showDialog(recipesOverlay, document.getElementById('recipesClose'));
+    loadSquareItems();
     try {
       await loadRecipes();
       if (activeDialog !== recipesOverlay) return;
@@ -642,6 +694,14 @@
       if (activeDialog === recipesOverlay) recipesFeedback.textContent = 'Could not load recipes. Please close and try again.';
     }
   });
+
+  refreshSquareItems.addEventListener('click', loadSquareItems);
+  squareItems.addEventListener('change', () => {
+    if (!squareItems.value) return;
+    recipeName.value = squareItems.value;
+    recipeInstructions.focus();
+  });
+  recipeName.addEventListener('input', syncSquareSelection);
 
   recipeCancelEdit.addEventListener('click', () => {
     resetRecipeForm();

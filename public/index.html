@@ -100,7 +100,15 @@
         <div class="recipes-list" id="recipesList"></div>
         <form id="recipeForm" class="recipe-form">
           <h3 id="recipeFormTitle">Add a recipe</h3>
-          <label class="field-label" for="recipeName">Drink name</label>
+          <div class="square-picker-header">
+            <label class="field-label" for="squareItems">Choose a Square item</label>
+            <button class="btn-refresh-items" id="refreshSquareItems" type="button">Refresh Square items</button>
+          </div>
+          <select class="field-input" id="squareItems" aria-describedby="squareItemsStatus" disabled>
+            <option value="">Loading Square items…</option>
+          </select>
+          <p class="square-items-status" id="squareItemsStatus" role="status" aria-live="polite"></p>
+          <label class="field-label" for="recipeName">Drink name <span class="optional">(or enter manually)</span></label>
           <input class="field-input" type="text" id="recipeName" maxlength="120" required autocomplete="off" placeholder="e.g. Honey oat latte">
           <label class="field-label" for="recipeInstructions">Instructions</label>
           <textarea class="field-input recipe-textarea" id="recipeInstructions" required rows="6" placeholder="Ingredients, steps, and finishing touches"></textarea>

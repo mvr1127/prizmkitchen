@@ -258,6 +258,43 @@ app.get('/api/token', requireAuth, (req, res) => {
   res.json({ sseToken });
 });
 
+app.get('/api/square/items', requireAuth, async (req, res) => {
+  if (!SQUARE_ACCESS_TOKEN) return res.status(503).json({ error: 'Square access token is not configured' });
+
+  try {
+    const names = new Map();
+    const cursors = new Set();
+    let cursor;
+    do {
+      const params = new URLSearchParams({ types: 'ITEM' });
+      if (cursor) params.set('cursor', cursor);
+      const response = await fetch(`${SQUARE_BASE_URL}/catalog/list?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+          'Square-Version': '2024-01-17'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) throw new Error(`Square catalog request failed: ${response.status}`);
+      const data = await response.json();
+      for (const item of data.objects || []) {
+        if (item.type !== 'ITEM' || item.is_deleted || item.item_data?.is_archived) continue;
+        const name = item.item_data?.name?.trim();
+        if (name && name.length <= 120 && !names.has(recipeKey(name))) names.set(recipeKey(name), name);
+      }
+      cursor = data.cursor;
+      if (cursor && cursors.has(cursor)) throw new Error('Square catalog returned a repeated cursor');
+      if (cursor) cursors.add(cursor);
+    } while (cursor);
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(Array.from(names.values()).sort((a, b) => a.localeCompare(b)));
+  } catch (err) {
+    console.error('Could not load Square catalog items:', err);
+    res.status(502).json({ error: 'Could not load Square items. Check the Square connection and catalog permissions.' });
+  }
+});
+
 app.get('/api/recipes', requireAuth, (req, res) => {
   res.json(recipes);
 });
