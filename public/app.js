@@ -90,7 +90,7 @@
         <div class="line-item">
           <div class="item-main">
             <span class="item-qty">${escapeHtml(item.quantity)}×</span>
-            <span class="item-name">${escapeHtml(item.name)}</span>
+            <button class="item-name" type="button" aria-label="View recipe for ${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>
           </div>
           ${modsHtml}
           ${noteHtml}
@@ -116,6 +116,9 @@
         <button class="btn-deliver" data-id="${ticket.id}">✓ Delivered</button>
       </div>`;
 
+    card.querySelectorAll('.item-name').forEach((button, index) => {
+      button.addEventListener('click', () => openRecipeView(ticket.items[index].name));
+    });
     card.querySelector('.btn-deliver').addEventListener('click', () => deliverTicket(ticket.id));
     return card;
   }
@@ -388,17 +391,56 @@
     if (focusName) row.querySelector('.item-name-input').focus();
   }
 
+  let activeDialog = null;
+  let dialogTrigger = null;
+
+  function showDialog(overlay, focusTarget) {
+    dialogTrigger = document.activeElement;
+    activeDialog = overlay;
+    overlay.classList.add('open');
+    document.body.classList.add('dialog-open');
+    (focusTarget || overlay.querySelector('[role="dialog"]')).focus();
+  }
+
+  function hideDialog(overlay) {
+    if (activeDialog !== overlay) return;
+    overlay.classList.remove('open');
+    activeDialog = null;
+    document.body.classList.remove('dialog-open');
+    if (dialogTrigger && dialogTrigger.isConnected) dialogTrigger.focus();
+    dialogTrigger = null;
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (!activeDialog) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      hideDialog(activeDialog);
+    } else if (event.key === 'Tab') {
+      const focusable = Array.from(activeDialog.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]'));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !activeDialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !activeDialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  });
+
   function openModal() {
     mCustomerName.value = '';
     mOrderNote.value = '';
     mItems.innerHTML = '';
     addItemRow(false);
-    modalOverlay.classList.add('open');
-    mCustomerName.focus();
+    showDialog(modalOverlay, mCustomerName);
   }
 
   function closeModal() {
-    modalOverlay.classList.remove('open');
+    hideDialog(modalOverlay);
   }
 
   newOrderBtn.addEventListener('click', openModal);
@@ -449,6 +491,190 @@
     }
   });
 
+  const recipeViewOverlay = document.getElementById('recipeViewOverlay');
+  const recipeViewTitle = document.getElementById('recipeViewTitle');
+  const recipeViewInstructions = document.getElementById('recipeViewInstructions');
+  const recipesOverlay = document.getElementById('recipesOverlay');
+  const recipesList = document.getElementById('recipesList');
+  const recipesFeedback = document.getElementById('recipesFeedback');
+  const recipeForm = document.getElementById('recipeForm');
+  const recipeName = document.getElementById('recipeName');
+  const recipeInstructions = document.getElementById('recipeInstructions');
+  const recipeSave = document.getElementById('recipeSave');
+  const recipeCancelEdit = document.getElementById('recipeCancelEdit');
+  const recipeFormTitle = document.getElementById('recipeFormTitle');
+  let recipes = [];
+  let editingName = null;
+  let recipeRequest = 0;
+  let recipesLoadRequest = 0;
+
+  function normalizedName(name) {
+    return String(name).trim().toLocaleLowerCase();
+  }
+
+  async function loadRecipes() {
+    const request = ++recipesLoadRequest;
+    const response = await fetch('/api/recipes');
+    if (!response.ok) throw new Error('Could not load recipes');
+    const data = await response.json();
+    if (!Array.isArray(data)) throw new Error('Invalid recipes');
+    if (request === recipesLoadRequest) recipes = data;
+    return data;
+  }
+
+  async function openRecipeView(name) {
+    const request = ++recipeRequest;
+    recipeViewTitle.textContent = name;
+    recipeViewInstructions.textContent = 'Loading recipe…';
+    showDialog(recipeViewOverlay, document.getElementById('recipeViewClose'));
+    try {
+      const current = await loadRecipes();
+      if (request !== recipeRequest || activeDialog !== recipeViewOverlay) return;
+      const recipe = current.find(entry => normalizedName(entry.name) === normalizedName(name));
+      recipeViewInstructions.textContent = recipe ? recipe.instructions : 'No recipe saved for this drink yet.';
+    } catch (_) {
+      if (request === recipeRequest && activeDialog === recipeViewOverlay) {
+        recipeViewInstructions.textContent = 'Could not load recipes. Please try again.';
+      }
+    }
+  }
+
+  function resetRecipeForm() {
+    editingName = null;
+    recipeForm.reset();
+    recipeFormTitle.textContent = 'Add a recipe';
+    recipeSave.textContent = 'Save recipe';
+    recipeCancelEdit.hidden = true;
+  }
+
+  function renderRecipes() {
+    recipesList.replaceChildren();
+    if (!recipes.length) {
+      const empty = document.createElement('p');
+      empty.className = 'recipes-empty';
+      empty.textContent = 'No recipes saved yet. Add the first one below.';
+      recipesList.appendChild(empty);
+      return;
+    }
+    recipes.forEach(recipe => {
+      const row = document.createElement('div');
+      row.className = 'recipe-list-row';
+      const details = document.createElement('div');
+      details.className = 'recipe-list-details';
+      const title = document.createElement('strong');
+      title.textContent = recipe.name;
+      const preview = document.createElement('span');
+      preview.textContent = recipe.instructions;
+      details.append(title, preview);
+      const actions = document.createElement('div');
+      actions.className = 'recipe-list-actions';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', `Edit ${recipe.name}`);
+      edit.addEventListener('click', () => {
+        editingName = recipe.name;
+        recipeName.value = recipe.name;
+        recipeInstructions.value = recipe.instructions;
+        recipeFormTitle.textContent = 'Edit recipe';
+        recipeSave.textContent = 'Update recipe';
+        recipeCancelEdit.hidden = false;
+        recipesFeedback.textContent = '';
+        recipeName.focus();
+      });
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'recipe-delete';
+      remove.textContent = 'Delete';
+      remove.setAttribute('aria-label', `Delete ${recipe.name}`);
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`Delete the recipe for ${recipe.name}?`)) return;
+        remove.disabled = true;
+        recipesFeedback.textContent = '';
+        try {
+          const response = await fetch(`/api/recipes/${encodeURIComponent(recipe.name)}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Delete failed');
+          if (editingName && normalizedName(editingName) === normalizedName(recipe.name)) resetRecipeForm();
+          await loadRecipes();
+          renderRecipes();
+          recipesFeedback.textContent = 'Recipe deleted.';
+          recipeName.focus();
+        } catch (_) {
+          recipesFeedback.textContent = 'Could not delete recipe. Please try again.';
+          remove.disabled = false;
+        }
+      });
+      actions.append(edit, remove);
+      row.append(details, actions);
+      recipesList.appendChild(row);
+    });
+  }
+
+  document.getElementById('recipesBtn').addEventListener('click', async () => {
+    resetRecipeForm();
+    recipesFeedback.textContent = 'Loading recipes…';
+    recipesList.replaceChildren();
+    showDialog(recipesOverlay, document.getElementById('recipesClose'));
+    try {
+      await loadRecipes();
+      if (activeDialog !== recipesOverlay) return;
+      recipesFeedback.textContent = '';
+      renderRecipes();
+    } catch (_) {
+      if (activeDialog === recipesOverlay) recipesFeedback.textContent = 'Could not load recipes. Please close and try again.';
+    }
+  });
+
+  recipeCancelEdit.addEventListener('click', () => {
+    resetRecipeForm();
+    recipeName.focus();
+  });
+
+  recipeForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = recipeName.value.trim();
+    const instructions = recipeInstructions.value.trim();
+    if (!name || !instructions) {
+      recipesFeedback.textContent = 'Enter a drink name and instructions.';
+      (!name ? recipeName : recipeInstructions).focus();
+      return;
+    }
+    const match = recipes.find(recipe => normalizedName(recipe.name) === normalizedName(name));
+    if (match && (!editingName || normalizedName(editingName) !== normalizedName(match.name))) {
+      recipesFeedback.textContent = 'A recipe with this name already exists. Edit it instead.';
+      recipeName.focus();
+      return;
+    }
+    recipeSave.disabled = true;
+    recipesFeedback.textContent = 'Saving recipe…';
+    try {
+      const response = await fetch(`/api/recipes/${encodeURIComponent(editingName || name)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, instructions })
+      });
+      if (!response.ok) throw new Error('Save failed');
+      await loadRecipes();
+      renderRecipes();
+      resetRecipeForm();
+      recipesFeedback.textContent = 'Recipe saved.';
+      recipeName.focus();
+    } catch (_) {
+      recipesFeedback.textContent = 'Could not save recipe. Please try again.';
+    } finally {
+      recipeSave.disabled = false;
+    }
+  });
+
+  document.getElementById('recipeViewClose').addEventListener('click', () => hideDialog(recipeViewOverlay));
+  document.getElementById('recipesClose').addEventListener('click', () => hideDialog(recipesOverlay));
+  [recipeViewOverlay, recipesOverlay].forEach(overlay => {
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) hideDialog(overlay);
+    });
+  });
+
+  loadRecipes().catch(() => {});
   refreshDeliveredCount();
   loadTickets();
   getFreshToken().then(connectSSE);

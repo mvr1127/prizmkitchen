@@ -21,6 +21,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 
 const DATA_DIR = path.join(__dirname, 'data');
 const TICKETS_FILE = path.join(DATA_DIR, 'tickets.json');
+const RECIPES_FILE = path.join(DATA_DIR, 'recipes.json');
 
 const sseTokens = new Map();
 
@@ -38,6 +39,27 @@ try {
 
 function saveTickets() {
   fs.writeFileSync(TICKETS_FILE, JSON.stringify(tickets, null, 2));
+}
+
+let recipes = [];
+try {
+  const stored = JSON.parse(fs.readFileSync(RECIPES_FILE, 'utf8'));
+  if (Array.isArray(stored)) recipes = stored.filter(recipe =>
+    recipe && typeof recipe.name === 'string' && typeof recipe.instructions === 'string'
+  );
+} catch (err) {
+  if (err.code !== 'ENOENT') console.error('Could not load recipes:', err);
+}
+
+function saveRecipes(nextRecipes) {
+  const tempFile = RECIPES_FILE + '.tmp';
+  fs.writeFileSync(tempFile, JSON.stringify(nextRecipes, null, 2));
+  fs.renameSync(tempFile, RECIPES_FILE);
+  recipes = nextRecipes;
+}
+
+function recipeKey(name) {
+  return name.trim().toLocaleLowerCase();
 }
 
 let sseClients = [];
@@ -234,6 +256,52 @@ app.get('/api/token', requireAuth, (req, res) => {
   sseTokens.set(sseToken, Date.now());
   setTimeout(() => sseTokens.delete(sseToken), 24 * 60 * 60 * 1000);
   res.json({ sseToken });
+});
+
+app.get('/api/recipes', requireAuth, (req, res) => {
+  res.json(recipes);
+});
+
+app.put('/api/recipes/:name', requireAuth, (req, res) => {
+  const { name, instructions } = req.body || {};
+  if (typeof name !== 'string' || typeof instructions !== 'string' ||
+      !name.trim() || !instructions.trim() || name.trim().length > 120 || instructions.trim().length > 10000) {
+    return res.status(400).json({ error: 'A drink name and instructions are required' });
+  }
+
+  const key = recipeKey(req.params.name);
+  const updated = { name: name.trim(), instructions: instructions.trim() };
+  const index = recipes.findIndex(recipe => recipeKey(recipe.name) === key);
+  if (index < 0 && key !== recipeKey(updated.name)) {
+    return res.status(404).json({ error: 'Recipe not found' });
+  }
+  if (recipes.some((recipe, i) => i !== index && recipeKey(recipe.name) === recipeKey(updated.name))) {
+    return res.status(409).json({ error: 'A recipe with that name already exists' });
+  }
+
+  const nextRecipes = [...recipes];
+  if (index < 0) nextRecipes.push(updated);
+  else nextRecipes[index] = updated;
+  try {
+    saveRecipes(nextRecipes);
+    res.json(updated);
+  } catch (err) {
+    console.error('Could not save recipe:', err);
+    res.status(500).json({ error: 'Could not save recipe' });
+  }
+});
+
+app.delete('/api/recipes/:name', requireAuth, (req, res) => {
+  const key = recipeKey(req.params.name);
+  const index = recipes.findIndex(recipe => recipeKey(recipe.name) === key);
+  if (index < 0) return res.status(404).json({ error: 'Recipe not found' });
+  try {
+    saveRecipes(recipes.filter((_, i) => i !== index));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Could not delete recipe:', err);
+    res.status(500).json({ error: 'Could not delete recipe' });
+  }
 });
 
 app.get('/api/tickets', requireAuth, (req, res) => {
