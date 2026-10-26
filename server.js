@@ -154,7 +154,7 @@ async function processSquareEvent(event) {
   }
 
   const order = await fetchOrder(orderId);
-  if (!order) return;
+  if (!order || tickets.some(t => t.orderId === orderId)) return;
 
   const ticket = buildTicket(order);
   tickets.push(ticket);
@@ -251,6 +251,7 @@ app.post('/api/tickets/:id/deliver', requireAuth, (req, res) => {
   const ticket = tickets.find(t => t.id === req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
+  tickets = tickets.filter(t => t === ticket || t.id !== ticket.id);
   ticket.delivered = true;
   ticket.deliveredAt = new Date().toISOString();
   saveTickets();
@@ -263,6 +264,7 @@ app.post('/api/tickets/:id/restore', requireAuth, (req, res) => {
   const ticket = tickets.find(t => t.id === req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
+  tickets = tickets.filter(t => t === ticket || t.id !== ticket.id);
   ticket.delivered = false;
   delete ticket.deliveredAt;
   saveTickets();
