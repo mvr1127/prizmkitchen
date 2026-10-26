@@ -194,8 +194,26 @@ body {
 .toolbar-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.btn-timers {
+  background: var(--white);
+  border: 1px solid var(--caramel);
+  color: var(--roast);
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.btn-timers:hover { background: #fff3e0; }
+.btn-timers[aria-pressed="false"] { border-color: #d1d5db; color: var(--gray); }
+.timers-hidden .ticket-age { display: none; }
 
 .btn-recipes {
   background: var(--white);

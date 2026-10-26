@@ -11,6 +11,27 @@
   const statusDot = document.getElementById('statusDot');
   const testBtn = document.getElementById('testBtn');
   const logoutBtn = document.getElementById('logoutBtn');
+  const timersToggle = document.getElementById('timersToggle');
+  let timersVisible = true;
+
+  try {
+    timersVisible = window.localStorage.getItem('timersVisible') !== 'false';
+  } catch (_) {}
+
+  function updateTimerVisibility() {
+    document.body.classList.toggle('timers-hidden', !timersVisible);
+    timersToggle.textContent = timersVisible ? 'Timers: On' : 'Timers: Off';
+    timersToggle.setAttribute('aria-pressed', String(timersVisible));
+  }
+
+  updateTimerVisibility();
+  timersToggle.addEventListener('click', () => {
+    timersVisible = !timersVisible;
+    updateTimerVisibility();
+    try {
+      window.localStorage.setItem('timersVisible', String(timersVisible));
+    } catch (_) {}
+  });
 
   function isDevMode() {
     return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
