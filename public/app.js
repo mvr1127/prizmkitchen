@@ -42,12 +42,9 @@
   }
 
   function getAgeText(iso) {
-    const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (secs < 60) return secs + 's ago';
+    const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
     const mins = Math.floor(secs / 60);
-    if (mins < 60) return mins + 'm ago';
-    const hrs = Math.floor(mins / 60);
-    return hrs + 'h ' + (mins % 60) + 'm ago';
+    return mins + ':' + String(secs % 60).padStart(2, '0');
   }
 
   function isNew(iso) {
@@ -261,7 +258,7 @@
         card.classList.remove('new');
       }
     });
-  }, 30000);
+  }, 1000);
 
   async function pollTickets() {
     try {
