@@ -30,7 +30,7 @@ let tickets = [];
 let ticketCounter = 1;
 try {
   const raw = fs.readFileSync(TICKETS_FILE, 'utf8');
-  tickets = JSON.parse(raw).filter(t => !t.delivered);
+  tickets = JSON.parse(raw);
   if (tickets.length > 0) {
     ticketCounter = Math.max(...tickets.map(t => t.number || 0)) + 1;
   }
