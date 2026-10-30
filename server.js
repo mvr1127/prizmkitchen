@@ -352,6 +352,28 @@ app.get('/api/tickets/delivered', requireAuth, (req, res) => {
   res.json(delivered);
 });
 
+app.post('/api/tickets/:id/items/:index/toggle', requireAuth, (req, res) => {
+  const ticket = tickets.find(t => t.id === req.params.id);
+  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  if (ticket.delivered) return res.status(409).json({ error: 'Ticket is already delivered' });
+  if (!/^(0|[1-9]\d*)$/.test(req.params.index) || !ticket.items[Number(req.params.index)]) {
+    return res.status(404).json({ error: 'Item not found' });
+  }
+
+  const item = ticket.items[Number(req.params.index)];
+  const previous = item.delivered;
+  item.delivered = !item.delivered;
+  try {
+    saveTickets();
+  } catch (err) {
+    item.delivered = previous;
+    console.error('Could not update ticket item:', err);
+    return res.status(500).json({ error: 'Could not update item' });
+  }
+  broadcastSSE({ type: 'ticket_updated', ticket });
+  res.json({ ticket });
+});
+
 app.post('/api/tickets/:id/deliver', requireAuth, (req, res) => {
   const ticket = tickets.find(t => t.id === req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
