@@ -12,6 +12,11 @@
   const testBtn = document.getElementById('testBtn');
   const logoutBtn = document.getElementById('logoutBtn');
   const timersToggle = document.getElementById('timersToggle');
+  const hotCount = document.getElementById('hotCount');
+  const icedCount = document.getElementById('icedCount');
+  const hotMilkList = document.getElementById('hotMilkList');
+  const icedMilkList = document.getElementById('icedMilkList');
+  const itemRequests = new Set();
   let timersVisible = true;
 
   try {
@@ -84,6 +89,7 @@
     const card = document.createElement('div');
     card.className = 'ticket-card' + (fresh ? ' new' : '');
     card.dataset.id = ticket.id;
+    card.dataset.snapshot = JSON.stringify(ticket);
 
     const ticketLabel = ticket.ticketName
       ? `#${ticket.ticketName}`
@@ -97,7 +103,7 @@
 
     const newBadge = fresh ? `<span class="new-badge">NEW</span>` : '';
 
-    const itemsHtml = ticket.items.map(item => {
+    const itemsHtml = ticket.items.map((item, index) => {
       const modsHtml = item.modifiers.length
         ? `<ul class="item-modifiers">${item.modifiers.map(m => `<li>${escapeHtml(m)}</li>`).join('')}</ul>`
         : '';
@@ -105,10 +111,11 @@
         ? `<div class="item-note">⚠ ${escapeHtml(item.note)}</div>`
         : '';
       return `
-        <div class="line-item">
+        <div class="line-item${item.delivered ? ' done' : ''}">
           <div class="item-main">
             <span class="item-qty">${escapeHtml(item.quantity)}×</span>
             <button class="item-name" type="button" aria-label="View recipe for ${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>
+            <button class="btn-item-deliver" type="button" data-index="${index}" aria-label="${item.delivered ? 'Undo' : 'Mark'} ${escapeHtml(item.name)}${item.delivered ? '' : ' done'}">${item.delivered ? 'Undo' : 'Done'}</button>
           </div>
           ${modsHtml}
           ${noteHtml}
@@ -137,6 +144,9 @@
     card.querySelectorAll('.item-name').forEach((button, index) => {
       button.addEventListener('click', () => openRecipeView(ticket.items[index].name));
     });
+    card.querySelectorAll('.btn-item-deliver').forEach(button => {
+      button.addEventListener('click', () => toggleItem(ticket.id, Number(button.dataset.index)));
+    });
     card.querySelector('.btn-deliver').addEventListener('click', () => deliverTicket(ticket.id));
     return card;
   }
@@ -149,15 +159,57 @@
       .replace(/"/g, '&quot;');
   }
 
+  function milkType(modifiers) {
+    const text = (modifiers || []).join(' ').toLowerCase();
+    if (/\b(oat|oatmilk)\b/.test(text)) return 'Oat';
+    if (/\b(almond|almondmilk)\b/.test(text)) return 'Almond';
+    if (/\b(soy|soymilk)\b/.test(text)) return 'Soy';
+    if (/\b(coconut|coconutmilk)\b/.test(text)) return 'Coconut';
+    if (/\b(nonfat|non-fat|skim)\b/.test(text)) return 'Nonfat';
+    if (/(^|\s)2\s*%/.test(text)) return '2%';
+    if (/\b(half\s*(?:and|&)\s*half|breve)\b/.test(text)) return 'Half & Half';
+    return 'Whole';
+  }
+
+  function renderPrepSummary(pending) {
+    const groups = { hot: new Map(), iced: new Map() };
+    const totals = { hot: 0, iced: 0 };
+    pending.forEach(ticket => ticket.items.forEach(item => {
+      if (item.delivered) return;
+      const quantity = Number(item.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) return;
+      const temperature = (item.modifiers || []).some(modifier => /\biced\b/i.test(modifier)) ? 'iced' : 'hot';
+      const milk = milkType(item.modifiers);
+      totals[temperature] += quantity;
+      groups[temperature].set(milk, (groups[temperature].get(milk) || 0) + quantity);
+    }));
+    hotCount.textContent = totals.hot;
+    icedCount.textContent = totals.iced;
+    [['hot', hotMilkList], ['iced', icedMilkList]].forEach(([temperature, list]) => {
+      list.replaceChildren();
+      if (!totals[temperature]) {
+        const empty = document.createElement('span');
+        empty.textContent = 'No drinks pending';
+        list.appendChild(empty);
+      } else {
+        Array.from(groups[temperature]).sort(([a], [b]) => a.localeCompare(b)).forEach(([milk, quantity]) => {
+          const label = document.createElement('span');
+          label.textContent = `${quantity} ${milk}`;
+          list.appendChild(label);
+        });
+      }
+    });
+  }
+
   function renderAll() {
     const pending = tickets.filter(t => !t.delivered).sort((a, b) =>
       new Date(a.createdAt) - new Date(b.createdAt)
     );
 
     ticketCount.textContent = pending.length;
+    renderPrepSummary(pending);
 
     const existing = Array.from(container.querySelectorAll('.ticket-card'));
-    const existingIds = new Set(existing.map(el => el.dataset.id));
     const pendingIds = new Set(pending.map(t => t.id));
 
     existing.forEach(el => {
@@ -165,15 +217,35 @@
     });
 
     pending.forEach((ticket, i) => {
-      if (!existingIds.has(ticket.id)) {
-        const card = buildTicketCard(ticket);
-        const allCards = container.querySelectorAll('.ticket-card');
-        const insertBefore = allCards[i] || null;
-        container.insertBefore(card, insertBefore);
-      }
+      const current = Array.from(container.querySelectorAll('.ticket-card')).find(el => el.dataset.id === ticket.id);
+      if (current && current.dataset.snapshot === JSON.stringify(ticket)) return;
+      const card = buildTicketCard(ticket);
+      if (current) current.replaceWith(card);
+      else container.insertBefore(card, container.querySelectorAll('.ticket-card')[i] || null);
     });
 
     emptyState.style.display = pending.length === 0 ? 'block' : 'none';
+  }
+
+  async function toggleItem(id, index) {
+    const key = `${id}:${index}`;
+    if (itemRequests.has(key)) return;
+    itemRequests.add(key);
+    const card = Array.from(container.querySelectorAll('.ticket-card')).find(el => el.dataset.id === id);
+    const button = card?.querySelectorAll('.btn-item-deliver')[index];
+    if (button) button.disabled = true;
+    try {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}/items/${index}/toggle`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed');
+      const { ticket } = await res.json();
+      tickets = tickets.map(t => t.id === id ? ticket : t);
+      renderAll();
+    } catch (_) {
+      if (button) button.disabled = false;
+      alert('Could not update item. Please try again.');
+    } finally {
+      itemRequests.delete(key);
+    }
   }
 
   async function deliverTicket(id) {
@@ -228,16 +300,22 @@
         setStatus('connected');
       } else if (msg.type === 'new_ticket') {
         const exists = tickets.find(t => t.id === msg.ticket.id);
-        if (!exists) {
-          tickets.push(msg.ticket);
-          renderAll();
-          notifyBarista();
-        }
+        if (exists) tickets = tickets.map(t => t.id === msg.ticket.id ? msg.ticket : t);
+        else tickets.push(msg.ticket);
+        renderAll();
+        if (!exists) notifyBarista();
+        refreshDeliveredCount();
+        if (deliveredOpen) loadDelivered();
+      } else if (msg.type === 'ticket_updated') {
+        tickets = tickets.map(t => t.id === msg.ticket.id ? msg.ticket : t);
+        renderAll();
       } else if (msg.type === 'ticket_delivered') {
         tickets = tickets.map(t =>
           t.id === msg.ticketId ? { ...t, delivered: true } : t
         );
         renderAll();
+        refreshDeliveredCount();
+        if (deliveredOpen) loadDelivered();
       }
     });
 
@@ -286,19 +364,14 @@
       const res = await fetch('/api/tickets');
       if (res.status === 401) return;
       const fresh = await res.json();
-      let changed = false;
-      fresh.forEach(t => {
-        if (!tickets.find(e => e.id === t.id)) {
-          tickets.push(t);
-          changed = true;
-          notifyBarista();
-        }
-      });
-      tickets = tickets.map(t => {
-        const server = fresh.find(s => s.id === t.id);
-        return server || t;
-      });
-      if (changed) renderAll();
+      const previous = tickets.filter(t => !t.delivered);
+      if (JSON.stringify(previous) !== JSON.stringify(fresh)) {
+        if (fresh.some(t => !previous.some(e => e.id === t.id))) notifyBarista();
+        tickets = fresh;
+        renderAll();
+        refreshDeliveredCount();
+        if (deliveredOpen) loadDelivered();
+      }
     } catch (_) {}
   }
 
