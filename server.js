@@ -363,14 +363,23 @@ app.post('/api/tickets/:id/items/:index/toggle', requireAuth, (req, res) => {
   const item = ticket.items[Number(req.params.index)];
   const previous = item.delivered;
   item.delivered = !item.delivered;
+  const completed = ticket.items.every(entry => entry.delivered);
+  if (completed) {
+    ticket.delivered = true;
+    ticket.deliveredAt = new Date().toISOString();
+  }
   try {
     saveTickets();
   } catch (err) {
     item.delivered = previous;
+    if (completed) {
+      ticket.delivered = false;
+      delete ticket.deliveredAt;
+    }
     console.error('Could not update ticket item:', err);
     return res.status(500).json({ error: 'Could not update item' });
   }
-  broadcastSSE({ type: 'ticket_updated', ticket });
+  broadcastSSE(completed ? { type: 'ticket_delivered', ticketId: ticket.id } : { type: 'ticket_updated', ticket });
   res.json({ ticket });
 });
 
@@ -394,6 +403,9 @@ app.post('/api/tickets/:id/restore', requireAuth, (req, res) => {
   tickets = tickets.filter(t => t === ticket || t.id !== ticket.id);
   ticket.delivered = false;
   delete ticket.deliveredAt;
+  if (ticket.items.length && ticket.items.every(item => item.delivered)) {
+    ticket.items.forEach(item => { item.delivered = false; });
+  }
   saveTickets();
   broadcastSSE({ type: 'new_ticket', ticket });
   res.json({ success: true });

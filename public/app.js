@@ -115,7 +115,7 @@
           <div class="item-main">
             <span class="item-qty">${escapeHtml(item.quantity)}×</span>
             <button class="item-name" type="button" aria-label="View recipe for ${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>
-            <button class="btn-item-deliver" type="button" data-index="${index}" aria-label="${item.delivered ? 'Undo' : 'Mark'} ${escapeHtml(item.name)}${item.delivered ? '' : ' done'}">${item.delivered ? 'Undo' : 'Done'}</button>
+            <label class="item-check"><input class="item-checkbox" type="checkbox" data-index="${index}" aria-label="${escapeHtml(item.name)} complete"${item.delivered ? ' checked' : ''}></label>
           </div>
           ${modsHtml}
           ${noteHtml}
@@ -144,8 +144,8 @@
     card.querySelectorAll('.item-name').forEach((button, index) => {
       button.addEventListener('click', () => openRecipeView(ticket.items[index].name));
     });
-    card.querySelectorAll('.btn-item-deliver').forEach(button => {
-      button.addEventListener('click', () => toggleItem(ticket.id, Number(button.dataset.index)));
+    card.querySelectorAll('.item-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', () => toggleItem(ticket.id, Number(checkbox.dataset.index), checkbox));
     });
     card.querySelector('.btn-deliver').addEventListener('click', () => deliverTicket(ticket.id));
     return card;
@@ -227,23 +227,30 @@
     emptyState.style.display = pending.length === 0 ? 'block' : 'none';
   }
 
-  async function toggleItem(id, index) {
+  async function toggleItem(id, index, checkbox) {
     const key = `${id}:${index}`;
-    if (itemRequests.has(key)) return;
+    if (itemRequests.has(key)) {
+      checkbox.checked = !checkbox.checked;
+      return;
+    }
     itemRequests.add(key);
-    const card = Array.from(container.querySelectorAll('.ticket-card')).find(el => el.dataset.id === id);
-    const button = card?.querySelectorAll('.btn-item-deliver')[index];
-    if (button) button.disabled = true;
+    checkbox.disabled = true;
     try {
       const res = await fetch(`/api/tickets/${encodeURIComponent(id)}/items/${index}/toggle`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed');
       const { ticket } = await res.json();
-      tickets = tickets.map(t => t.id === id ? ticket : t);
+      tickets = tickets.map(t => t.id === id && !t.delivered ? ticket : t);
       renderAll();
+      if (ticket.delivered) {
+        refreshDeliveredCount();
+        if (deliveredOpen) loadDelivered();
+      }
     } catch (_) {
-      if (button) button.disabled = false;
+      checkbox.checked = !checkbox.checked;
+      await loadTickets();
       alert('Could not update item. Please try again.');
     } finally {
+      checkbox.disabled = false;
       itemRequests.delete(key);
     }
   }
@@ -307,7 +314,7 @@
         refreshDeliveredCount();
         if (deliveredOpen) loadDelivered();
       } else if (msg.type === 'ticket_updated') {
-        tickets = tickets.map(t => t.id === msg.ticket.id ? msg.ticket : t);
+        tickets = tickets.map(t => t.id === msg.ticket.id && !t.delivered ? msg.ticket : t);
         renderAll();
       } else if (msg.type === 'ticket_delivered') {
         tickets = tickets.map(t =>

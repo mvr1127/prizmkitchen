@@ -808,25 +808,25 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [role="dialog
 
 .item-name:hover { color: #9b591c; border-bottom-style: solid; }
 
-.btn-item-deliver {
+.item-check {
   flex-shrink: 0;
-  min-height: 44px;
   min-width: 44px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--green-dark);
-  border-radius: 8px;
-  background: var(--green-dark);
-  color: var(--white);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
-.btn-item-deliver:hover { background: #117b36; }
-.btn-item-deliver:active { background: #0f6a30; }
-.btn-item-deliver:disabled { opacity: 0.55; cursor: not-allowed; }
+.item-checkbox {
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  accent-color: var(--green-dark);
+  cursor: pointer;
+}
+
+.item-checkbox:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .line-item.done .item-qty,
 .line-item.done .item-name,
