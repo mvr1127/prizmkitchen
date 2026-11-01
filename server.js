@@ -352,6 +352,16 @@ app.get('/api/tickets/delivered', requireAuth, (req, res) => {
   res.json(delivered);
 });
 
+function finishTicket(ticket) {
+  ticket.delivered = true;
+  ticket.deliveredAt = new Date().toISOString();
+  const startedAt = Date.parse(ticket.receivedAt || ticket.createdAt);
+  ticket.deliveryDurationSeconds = Number.isFinite(startedAt)
+    ? Math.max(0, Math.floor((Date.parse(ticket.deliveredAt) - startedAt) / 1000))
+    : null;
+  ticket.excludeFromAverage = false;
+}
+
 app.post('/api/tickets/:id/items/:index/toggle', requireAuth, (req, res) => {
   const ticket = tickets.find(t => t.id === req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
@@ -364,10 +374,7 @@ app.post('/api/tickets/:id/items/:index/toggle', requireAuth, (req, res) => {
   const previous = item.delivered;
   item.delivered = !item.delivered;
   const completed = ticket.items.every(entry => entry.delivered);
-  if (completed) {
-    ticket.delivered = true;
-    ticket.deliveredAt = new Date().toISOString();
-  }
+  if (completed) finishTicket(ticket);
   try {
     saveTickets();
   } catch (err) {
@@ -375,6 +382,8 @@ app.post('/api/tickets/:id/items/:index/toggle', requireAuth, (req, res) => {
     if (completed) {
       ticket.delivered = false;
       delete ticket.deliveredAt;
+      delete ticket.deliveryDurationSeconds;
+      delete ticket.excludeFromAverage;
     }
     console.error('Could not update ticket item:', err);
     return res.status(500).json({ error: 'Could not update item' });
@@ -386,14 +395,36 @@ app.post('/api/tickets/:id/items/:index/toggle', requireAuth, (req, res) => {
 app.post('/api/tickets/:id/deliver', requireAuth, (req, res) => {
   const ticket = tickets.find(t => t.id === req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  if (ticket.delivered) return res.status(409).json({ error: 'Ticket is already delivered' });
 
   tickets = tickets.filter(t => t === ticket || t.id !== ticket.id);
-  ticket.delivered = true;
-  ticket.deliveredAt = new Date().toISOString();
+  finishTicket(ticket);
   saveTickets();
   broadcastSSE({ type: 'ticket_delivered', ticketId: ticket.id });
   console.log(`Ticket delivered: ${ticket.id}`);
   res.json({ success: true });
+});
+
+app.patch('/api/tickets/:id/delivery-metric', requireAuth, (req, res) => {
+  const ticket = tickets.find(t => t.id === req.params.id);
+  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  if (!ticket.delivered) return res.status(409).json({ error: 'Ticket is not delivered' });
+  if (typeof req.body?.excludeFromAverage !== 'boolean') {
+    return res.status(400).json({ error: 'excludeFromAverage must be a boolean' });
+  }
+
+  const previous = ticket.excludeFromAverage;
+  ticket.excludeFromAverage = req.body.excludeFromAverage;
+  try {
+    saveTickets();
+  } catch (err) {
+    if (previous === undefined) delete ticket.excludeFromAverage;
+    else ticket.excludeFromAverage = previous;
+    console.error('Could not update delivery metric:', err);
+    return res.status(500).json({ error: 'Could not update delivery metric' });
+  }
+  broadcastSSE({ type: 'delivery_metric_updated', ticketId: ticket.id });
+  res.json({ ticket });
 });
 
 app.post('/api/tickets/:id/restore', requireAuth, (req, res) => {
@@ -403,6 +434,8 @@ app.post('/api/tickets/:id/restore', requireAuth, (req, res) => {
   tickets = tickets.filter(t => t === ticket || t.id !== ticket.id);
   ticket.delivered = false;
   delete ticket.deliveredAt;
+  delete ticket.deliveryDurationSeconds;
+  delete ticket.excludeFromAverage;
   if (ticket.items.length && ticket.items.every(item => item.delivered)) {
     ticket.items.forEach(item => { item.delivered = false; });
   }

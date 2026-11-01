@@ -430,6 +430,35 @@ body {
   line-height: 1.5;
 }
 
+.delivered-duration {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--roast);
+  margin-bottom: 0.25rem;
+}
+
+.timers-hidden .delivered-duration { display: none; }
+
+.metric-exclusion {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  font-size: 0.8rem;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.metric-exclusion-checkbox {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--green-dark);
+  cursor: pointer;
+}
+
+.metric-exclusion-checkbox:disabled { opacity: 0.55; cursor: not-allowed; }
+
 .delivered-note {
   font-size: 0.8rem;
   color: #92400e;

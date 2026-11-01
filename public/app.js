@@ -67,10 +67,13 @@
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  function formatDuration(seconds) {
+    return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+  }
+
   function getAgeText(iso) {
     const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-    const mins = Math.floor(secs / 60);
-    return mins + ':' + String(secs % 60).padStart(2, '0');
+    return formatDuration(secs);
   }
 
   function isNew(iso) {
@@ -323,6 +326,8 @@
         renderAll();
         refreshDeliveredCount();
         if (deliveredOpen) loadDelivered();
+      } else if (msg.type === 'delivery_metric_updated' && deliveredOpen) {
+        loadDelivered();
       }
     });
 
@@ -425,6 +430,13 @@
       const itemsSummary = ticket.items.map(i =>
         `${i.quantity}× ${escapeHtml(i.name)}`
       ).join(', ');
+      const start = Date.parse(ticket.receivedAt || ticket.createdAt);
+      const end = Date.parse(ticket.deliveredAt);
+      const elapsed = Number.isInteger(ticket.deliveryDurationSeconds)
+        ? ticket.deliveryDurationSeconds
+        : Number.isFinite(start) && Number.isFinite(end)
+          ? Math.max(0, Math.floor((end - start) / 1000))
+          : null;
 
       const card = document.createElement('div');
       card.className = 'delivered-card';
@@ -436,11 +448,36 @@
         </div>
         <div class="delivered-items">${itemsSummary}</div>
         ${ticket.orderNote ? `<div class="delivered-note">📋 ${escapeHtml(ticket.orderNote)}</div>` : ''}
+        ${elapsed !== null ? `<div class="delivered-duration">Time to deliver: ${formatDuration(elapsed)}</div>` : ''}
+        <label class="metric-exclusion"><input type="checkbox" class="metric-exclusion-checkbox"${ticket.excludeFromAverage ? ' checked' : ''}> Exclude from future average (forgot to mark delivered)</label>
         <button class="btn-restore" data-id="${ticket.id}">↩ Restore</button>`;
 
+      card.querySelector('.metric-exclusion-checkbox').addEventListener('change', event => {
+        updateDeliveryMetric(ticket.id, event.target);
+      });
       card.querySelector('.btn-restore').addEventListener('click', () => restoreTicket(ticket.id));
       deliveredList.appendChild(card);
     });
+  }
+
+  async function updateDeliveryMetric(id, checkbox) {
+    checkbox.disabled = true;
+    try {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}/delivery-metric`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ excludeFromAverage: checkbox.checked })
+      });
+      if (!res.ok) throw new Error('Failed');
+      const { ticket } = await res.json();
+      deliveredTickets = deliveredTickets.map(entry => entry.id === id ? ticket : entry);
+    } catch (_) {
+      checkbox.checked = !checkbox.checked;
+      alert('Could not update this delivery time. Please try again.');
+      loadDelivered();
+    } finally {
+      checkbox.disabled = false;
+    }
   }
 
   async function restoreTicket(id) {
