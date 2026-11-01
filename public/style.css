@@ -1074,4 +1074,60 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [role="dialog
 
 @media (min-width: 700px) {
   .app-header h1 { font-size: 1.4rem; }
+  .badge-count { font-size: 0.95rem; }
+  .btn-logout { min-height: 44px; font-size: 0.95rem; }
+
+  .sort-label { font-size: 0.95rem; }
+  .toolbar-actions { gap: 0.65rem; }
+  .btn-timers, .btn-recipes, .btn-new-order, .btn-test {
+    min-height: 48px;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  .prep-heading h2 { font-size: 1.15rem; }
+  .prep-heading span { font-size: 0.95rem; }
+  .prep-tile { min-height: 112px; }
+  .prep-tile h3 { font-size: 0.95rem; }
+  .prep-count { font-size: 2rem; }
+  .prep-milk-list { font-size: 0.95rem; }
+
+  .ticket-number { font-size: 1.45rem; }
+  .ticket-customer { font-size: 1.1rem; }
+  .ticket-time { font-size: 0.95rem; }
+  .ticket-age { font-size: 0.95rem; }
+  .new-badge { font-size: 0.75rem; }
+  .item-qty { font-size: 1.1rem; }
+  .item-name { font-size: 1.1rem; min-height: 48px; }
+  .item-check { min-width: 48px; min-height: 48px; }
+  .item-checkbox { width: 30px; height: 30px; }
+  .item-modifiers li { font-size: 1rem; line-height: 1.4; }
+  .item-note { font-size: 0.95rem; }
+  .order-note { font-size: 1rem; }
+  .btn-deliver { min-height: 48px; font-size: 1.05rem; }
+
+  .delivered-toggle { min-height: 48px; font-size: 1rem; }
+  .delivered-count { font-size: 0.9rem; }
+  .delivered-card-header { flex-wrap: wrap; gap: 0.3rem 0.5rem; }
+  .delivered-num, .delivered-customer { font-size: 1rem; }
+  .delivered-customer { min-width: 0; overflow-wrap: anywhere; }
+  .delivered-time { margin-left: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+  .delivered-items, .delivered-duration { font-size: 1rem; overflow-wrap: anywhere; }
+  .delivered-note, .metric-exclusion { font-size: 0.95rem; }
+  .btn-restore { min-height: 44px; font-size: 0.95rem; padding: 0.55rem 0.85rem; }
+
+  .modal-header h2 { font-size: 1.3rem; }
+  .modal-close { width: 44px; height: 44px; font-size: 1.1rem; }
+  .field-label { font-size: 0.95rem; }
+  .field-input { min-height: 48px; font-size: 1rem; }
+  .btn-cancel, .btn-submit { min-height: 48px; font-size: 1rem; }
+  .recipe-eyebrow { font-size: 0.8rem; }
+  .recipe-instructions { font-size: 1.1rem; }
+  .recipe-feedback, .recipes-empty { font-size: 1rem; }
+  .recipe-list-details strong { font-size: 1.05rem; }
+  .recipe-list-details span { font-size: 0.95rem; }
+  .recipe-list-actions button { min-height: 48px; font-size: 0.95rem; }
+  .recipe-form h3 { font-size: 1.15rem; }
+  .btn-refresh-items { min-height: 48px; font-size: 0.95rem; }
+  .square-items-status { font-size: 0.95rem; }
 }
