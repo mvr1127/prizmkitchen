@@ -430,9 +430,11 @@ app.patch('/api/tickets/:id/delivery-metric', requireAuth, (req, res) => {
 app.post('/api/tickets/:id/restore', requireAuth, (req, res) => {
   const ticket = tickets.find(t => t.id === req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  if (!ticket.delivered) return res.status(409).json({ error: 'Ticket is not delivered' });
 
   tickets = tickets.filter(t => t === ticket || t.id !== ticket.id);
   ticket.delivered = false;
+  ticket.restoredAt = new Date().toISOString();
   delete ticket.deliveredAt;
   delete ticket.deliveryDurationSeconds;
   delete ticket.excludeFromAverage;
@@ -440,7 +442,7 @@ app.post('/api/tickets/:id/restore', requireAuth, (req, res) => {
     ticket.items.forEach(item => { item.delivered = false; });
   }
   saveTickets();
-  broadcastSSE({ type: 'new_ticket', ticket });
+  broadcastSSE({ type: 'ticket_restored', ticket });
   res.json({ success: true });
 });
 

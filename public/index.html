@@ -24,6 +24,7 @@
     <span class="sort-label">Oldest orders first</span>
     <div class="toolbar-actions">
       <button class="btn-timers" id="timersToggle" type="button" aria-pressed="true">Timers: On</button>
+      <button class="btn-sound" id="soundToggle" type="button" aria-pressed="false">Sound: Off</button>
       <button class="btn-recipes" id="recipesBtn" type="button">Recipes</button>
       <button class="btn-new-order" id="newOrderBtn">+ New Order</button>
       <button class="btn-test" id="testBtn" style="display:none">+ Test</button>
@@ -69,6 +70,11 @@
     </button>
     <div class="delivered-list" id="deliveredList" style="display:none"></div>
   </section>
+
+  <div class="undo-toast" id="undoToast" role="status" hidden>
+    <span id="undoMessage">Order delivered</span>
+    <button id="undoDeliveryBtn" type="button">Undo</button>
+  </div>
 
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manualOrderTitle" tabindex="-1">

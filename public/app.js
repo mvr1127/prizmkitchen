@@ -12,11 +12,22 @@
   const testBtn = document.getElementById('testBtn');
   const logoutBtn = document.getElementById('logoutBtn');
   const timersToggle = document.getElementById('timersToggle');
+  const soundToggle = document.getElementById('soundToggle');
+  const knownTicketIds = new Set();
+  let ticketsLoaded = false;
+  let soundEnabled = false;
+  let audioContext = null;
+  const AudioContextType = window.AudioContext || window.webkitAudioContext;
   const hotCount = document.getElementById('hotCount');
   const icedCount = document.getElementById('icedCount');
   const hotMilkList = document.getElementById('hotMilkList');
   const icedMilkList = document.getElementById('icedMilkList');
   const itemRequests = new Set();
+  const undoToast = document.getElementById('undoToast');
+  const undoMessage = document.getElementById('undoMessage');
+  const undoDeliveryBtn = document.getElementById('undoDeliveryBtn');
+  let undoTicketId = null;
+  let undoTimer = null;
   let timersVisible = true;
 
   try {
@@ -37,6 +48,60 @@
       window.localStorage.setItem('timersVisible', String(timersVisible));
     } catch (_) {}
   });
+
+  try {
+    soundEnabled = window.localStorage.getItem('soundEnabled') === 'true' && !!AudioContextType;
+  } catch (_) {}
+
+  function updateSoundToggle() {
+    soundToggle.textContent = soundEnabled ? 'Sound: On' : 'Sound: Off';
+    soundToggle.setAttribute('aria-pressed', String(soundEnabled));
+  }
+
+  function unlockAudio() {
+    if (!soundEnabled || !AudioContextType) return;
+    try {
+      if (!audioContext) audioContext = new AudioContextType();
+      if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+    } catch (_) {}
+  }
+
+  function playNewOrderSound() {
+    if (!soundEnabled || !audioContext || audioContext.state !== 'running') return;
+    try {
+      [0, 0.18].forEach((offset, index) => {
+        const start = audioContext.currentTime + offset;
+        const oscillator = audioContext.createOscillator();
+        const volume = audioContext.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = index ? 880 : 660;
+        volume.gain.setValueAtTime(0.0001, start);
+        volume.gain.exponentialRampToValueAtTime(0.12, start + 0.02);
+        volume.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+        oscillator.connect(volume);
+        volume.connect(audioContext.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.17);
+      });
+    } catch (_) {}
+  }
+
+  updateSoundToggle();
+  soundToggle.addEventListener('click', () => {
+    if (!soundEnabled && !AudioContextType) {
+      alert('Sound is not available in this browser.');
+      return;
+    }
+    soundEnabled = !soundEnabled;
+    updateSoundToggle();
+    try {
+      window.localStorage.setItem('soundEnabled', String(soundEnabled));
+    } catch (_) {}
+    if (soundEnabled) unlockAudio();
+  });
+  document.addEventListener('pointerdown', unlockAudio);
+  document.addEventListener('touchstart', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
 
   function isDevMode() {
     return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -230,6 +295,29 @@
     emptyState.style.display = pending.length === 0 ? 'block' : 'none';
   }
 
+  function hideUndoToast() {
+    clearTimeout(undoTimer);
+    undoTicketId = null;
+    undoToast.hidden = true;
+  }
+
+  function showUndoToast(ticket) {
+    clearTimeout(undoTimer);
+    undoTicketId = ticket.id;
+    undoMessage.textContent = `Order #${ticket.ticketName || ticket.number || ticket.id.slice(-4)} delivered`;
+    undoToast.hidden = false;
+    undoDeliveryBtn.disabled = false;
+    undoTimer = setTimeout(hideUndoToast, 10000);
+  }
+
+  undoDeliveryBtn.addEventListener('click', async () => {
+    const id = undoTicketId;
+    if (!id) return;
+    undoDeliveryBtn.disabled = true;
+    await restoreTicket(id);
+    if (undoTicketId === id) undoDeliveryBtn.disabled = false;
+  });
+
   async function toggleItem(id, index, checkbox) {
     const key = `${id}:${index}`;
     if (itemRequests.has(key)) {
@@ -245,6 +333,7 @@
       tickets = tickets.map(t => t.id === id && !t.delivered ? ticket : t);
       renderAll();
       if (ticket.delivered) {
+        showUndoToast(ticket);
         refreshDeliveredCount();
         if (deliveredOpen) loadDelivered();
       }
@@ -260,13 +349,15 @@
 
   async function deliverTicket(id) {
     const card = container.querySelector(`[data-id="${id}"]`);
+    const ticket = tickets.find(t => t.id === id);
     if (card) card.classList.add('delivering');
 
     try {
-      const res = await fetch(`/api/tickets/${id}/deliver`, { method: 'POST' });
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}/deliver`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed');
       tickets = tickets.map(t => t.id === id ? { ...t, delivered: true } : t);
       renderAll();
+      if (ticket) showUndoToast(ticket);
       refreshDeliveredCount();
       if (deliveredOpen) loadDelivered();
     } catch (_) {
@@ -280,6 +371,8 @@
       const res = await fetch('/api/tickets');
       if (res.status === 401) { window.location.href = '/login'; return; }
       tickets = await res.json();
+      tickets.forEach(ticket => knownTicketIds.add(ticket.id));
+      ticketsLoaded = true;
       renderAll();
     } catch (_) {}
   }
@@ -308,12 +401,14 @@
 
       if (msg.type === 'connected') {
         setStatus('connected');
-      } else if (msg.type === 'new_ticket') {
+      } else if (msg.type === 'new_ticket' || msg.type === 'ticket_restored') {
         const exists = tickets.find(t => t.id === msg.ticket.id);
+        const isNew = ticketsLoaded && msg.type === 'new_ticket' && !knownTicketIds.has(msg.ticket.id);
+        knownTicketIds.add(msg.ticket.id);
         if (exists) tickets = tickets.map(t => t.id === msg.ticket.id ? msg.ticket : t);
         else tickets.push(msg.ticket);
         renderAll();
-        if (!exists) notifyBarista();
+        if (isNew) notifyBarista();
         refreshDeliveredCount();
         if (deliveredOpen) loadDelivered();
       } else if (msg.type === 'ticket_updated') {
@@ -344,6 +439,7 @@
   }
 
   function notifyBarista() {
+    playNewOrderSound();
     if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
       new Notification('New Order', { body: 'A new order has arrived.', icon: '' });
     }
@@ -377,8 +473,11 @@
       if (res.status === 401) return;
       const fresh = await res.json();
       const previous = tickets.filter(t => !t.delivered);
+      const hasNewOrder = ticketsLoaded && fresh.some(ticket => !knownTicketIds.has(ticket.id) && !ticket.restoredAt);
+      fresh.forEach(ticket => knownTicketIds.add(ticket.id));
+      ticketsLoaded = true;
       if (JSON.stringify(previous) !== JSON.stringify(fresh)) {
-        if (fresh.some(t => !previous.some(e => e.id === t.id))) notifyBarista();
+        if (hasNewOrder) notifyBarista();
         tickets = fresh;
         renderAll();
         refreshDeliveredCount();
@@ -482,11 +581,13 @@
 
   async function restoreTicket(id) {
     try {
-      const res = await fetch(`/api/tickets/${id}/restore`, { method: 'POST' });
+      const res = await fetch(`/api/tickets/${encodeURIComponent(id)}/restore`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed');
+      if (undoTicketId === id) hideUndoToast();
       deliveredTickets = deliveredTickets.filter(t => t.id !== id);
       renderDelivered();
       await loadTickets();
+      refreshDeliveredCount();
     } catch (_) {
       alert('Could not restore ticket. Please try again.');
     }
