@@ -172,6 +172,9 @@
     const newBadge = fresh ? `<span class="new-badge">NEW</span>` : '';
 
     const itemsHtml = ticket.items.map((item, index) => {
+      const variationHtml = item.variation
+        ? `<div class="item-variation">${escapeHtml(item.variation)}</div>`
+        : '';
       const modsHtml = item.modifiers.length
         ? `<ul class="item-modifiers">${item.modifiers.map(m => `<li>${escapeHtml(m)}</li>`).join('')}</ul>`
         : '';
@@ -185,6 +188,7 @@
             <button class="item-name" type="button" aria-label="View recipe for ${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>
             <label class="item-check"><input class="item-checkbox" type="checkbox" data-index="${index}" aria-label="${escapeHtml(item.name)} complete"${item.delivered ? ' checked' : ''}></label>
           </div>
+          ${variationHtml}
           ${modsHtml}
           ${noteHtml}
         </div>`;
@@ -246,7 +250,11 @@
       if (item.delivered) return;
       const quantity = Number(item.quantity);
       if (!Number.isFinite(quantity) || quantity <= 0) return;
-      const temperature = (item.modifiers || []).some(modifier => /\biced\b/i.test(modifier)) ? 'iced' : 'hot';
+      const variationTemperature = /\b(iced|cold|hot)\b/i.exec(item.variation || '');
+      const iced = variationTemperature
+        ? /\b(iced|cold)\b/i.test(variationTemperature[0])
+        : (item.modifiers || []).some(modifier => /\b(iced|cold)\b/i.test(modifier));
+      const temperature = iced ? 'iced' : 'hot';
       const milk = milkType(item.modifiers);
       totals[temperature] += quantity;
       groups[temperature].set(milk, (groups[temperature].get(milk) || 0) + quantity);

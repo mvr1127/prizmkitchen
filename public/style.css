@@ -896,12 +896,20 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [role="dialog
 
 .line-item.done .item-qty,
 .line-item.done .item-name,
+.line-item.done .item-variation,
 .line-item.done .item-modifiers li,
 .line-item.done .item-note { color: var(--gray); }
 
 .line-item.done .item-name { text-decoration: line-through; }
 .line-item.done .item-name:hover { color: var(--roast); }
 .line-item.done .item-modifiers li::before { color: var(--gray); }
+
+.item-variation {
+  margin-left: 1.9rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--caramel);
+}
 
 .item-modifiers {
   margin-left: 1.9rem;
@@ -1138,6 +1146,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [role="dialog
   .item-name { font-size: 1.1rem; min-height: 48px; }
   .item-check { min-width: 48px; min-height: 48px; }
   .item-checkbox { width: 30px; height: 30px; }
+  .item-variation { font-size: 1.05rem; }
   .item-modifiers li { font-size: 1rem; line-height: 1.4; }
   .item-note { font-size: 0.95rem; }
   .order-note { font-size: 1rem; }

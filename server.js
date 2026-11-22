@@ -211,6 +211,7 @@ function buildTicket(order) {
 
   const items = (order.line_items || []).map(item => ({
     name: item.name || 'Item',
+    variation: item.variation_name || null,
     quantity: item.quantity || '1',
     modifiers: (item.modifiers || []).map(m => m.name).filter(Boolean),
     note: item.note || null
